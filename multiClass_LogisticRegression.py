@@ -38,7 +38,7 @@ cross_entroy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(yPredict),reduction_indi
 optimizer = tf.train.GradientDescentOptimizer(learnRate)
 train = optimizer.minimize(cross_entroy)
 #检验预测的准确值
-correct_prediction  = tf.equal(tf.argmax(yPredict,1),tf.argmax(y,1))
+correct_prediction  = tf.equal(tf.argmax(yPredict,1),tf.argmax(y,1))#每行最大值的索引是否一样
 #初始化会话
 init = tf.global_variables_initializer()
 sess = tf.Session()
