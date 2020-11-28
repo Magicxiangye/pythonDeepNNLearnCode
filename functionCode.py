@@ -1,6 +1,5 @@
 import tensorflow as tf
 from sklearn.utils import shuffle
-import numpy as np
 
 #对tensorflow的模型进行类的封装
 class DNN(object):
@@ -55,7 +54,7 @@ class DNN(object):
         return yPredict
     #定义误差函数
     def loss(self,y,yPredict):
-        cross_entroy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(yPredict), reduction_indices=[1]))  # reduction_indices是要加和的方向
+        cross_entroy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict,1e-10,1.0)), reduction_indices=[1]))  # reduction_indices是要加和的方向
         return cross_entroy
     #定义训练模型（优化器之类的）
     def training(self,loss):
@@ -79,9 +78,9 @@ class DNN(object):
         self._keep_prob = keep_prob
         #训练的流程
         yPredict = self.inference(x,keep_prob)
-        loss = self.loss(yPredict)
+        loss = self.loss(y=y,yPredict=yPredict)
         train = self.training(loss)
-        accracy = self.accuracy(yPredict,y)#精确度
+        accracy = self.accuracy(y=y,yPredict=yPredict)#精确度
         #初始化会话
         init = tf.global_variables_initializer()
         sess = tf.Session()
@@ -100,7 +99,7 @@ class DNN(object):
             for batch in range(N_batches):
                 start = batch * batch_size
                 end = start + batch_size
-                sess.run(train,feed_dict={x:X_[start:end],y:Y_[start:end]})
+                sess.run(train,feed_dict={x:X_[start:end],y:Y_[start:end],keep_prob:p_keep})
             # 记录每epoch的loss
             train_loss = loss.eval(session=sess,feed_dict={x:X_train,y:Y_train,keep_prob:1.0})#要用.eavl的话要先实例化一下函数才行
             train_accracy = accracy.eval(session=sess,feed_dict={x:X_train,y:Y_train,keep_prob:1.0})
@@ -117,4 +116,11 @@ class DNN(object):
 
      #测试的方法
     def evaluate(self,X_test,Y_test):
-        pass
+        accuracy = self.accuracy(self._yPredict,self._y)
+        return accuracy.eval(session=self._sess,feed_dict={self._x:X_test,self._y:Y_test,self._keep_prob:1.0})#小不同点
+
+
+# 使用方法
+# model = DNN(n_in=784,n_hiddens=[100,100,100],n_out=10)
+# model.fit(X_train=x,Y_train=y,epochs=50,batch_size=100,p_keep=0.5)
+# accruacy = model.evaluate(X_test=x,Y_test=y)
