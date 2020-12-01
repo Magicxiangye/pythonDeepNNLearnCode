@@ -21,10 +21,22 @@ class DNN(object):
     def weight_Variable(self,shape):
         initial = tf.truncated_normal(shape=shape,stddev=0.01)
         return tf.Variable(initial)
+
+    #自己定义的batch-normalization的函数
+    def batch_Normalization(self,x,shape):
+        eps = 1e-8
+        beta = tf.Variable(tf.zeros[shape])
+        gamma = tf.Variable(tf.ones[shape])
+        mean,var = tf.nn.moments(x,[0])#用tf.nn.moment来计算平均值和方差
+        x_Bn = (x - mean) / tf.sqrt(var + eps)
+        y = gamma * x_Bn + beta
+        return y
+
     #定义偏移量的方法
     def bias_variable(self,shape):
         bias_initial = tf.zeros(shape)
         return tf.Variable(bias_initial)
+
     #定义模型(根据后期的情况，要添加层数的话还得修改代码)
     def inference(self,x,keep_prob=None):
         output = None
