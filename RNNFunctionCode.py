@@ -17,7 +17,10 @@ class RNN(object):
             initial = tf.zeros(shape,dtype=tf.float32)
             return tf.Variable(initial)
         #循环网络的初始化
-        cell = tf.contrib.rnn.BasicRNNCell(n_hidden)
+        #传统的循环神经网络没有门阀的控制
+        #cell = tf.contrib.rnn.BasicRNNCell(n_hidden)
+        #这个是没有窥视孔功能的LSTM（.LSTMCell()是有窥视孔功能的，参数也是一样用）
+        cell = tf.contrib.rnn.BasicLSTMCell(n_hidden,forget_bias=1.0)
         initial_state = cell.zero_state(n_batch,tf.float32)
 
         state = initial_state#隐藏层的初始化状态
