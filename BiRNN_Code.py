@@ -42,8 +42,12 @@ class biRnn(object):
 
 
     #误差分析
-    def loss(self):
-        pass
+    def loss(self,y,yPredict):
+        #还是用的交叉熵误差函数
+        #tf的几个函数回头记一下，学习一下
+        cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)), reduction_indices=[1]))
+        return cross_entropy
+
     #优化器
     def training(self):
         pass
