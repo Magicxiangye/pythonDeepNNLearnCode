@@ -66,7 +66,7 @@ class biRnn(object):
     #精确度函数的使用
     def accuracy(self,y,yPredict):
         correct_prediction  = tf.equal(tf.argmax(y,1), tf.argmax(yPredict,1))#每行最大值的索引是否一样(压缩的是第二维)
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))#张量的类型的转换，最后求总的训练的精确度
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))#张量的类型的转换，最后求总的平均训练的精确度
         return accuracy
 
     #训练
