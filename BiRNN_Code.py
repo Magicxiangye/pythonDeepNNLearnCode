@@ -158,7 +158,7 @@ if __name__ == '__main__':
         #精确度
         val_accuracy = accuracy.eval(session=sess, feed_dict={x:X_validation, y:Y_validation})
 
-        #加入数组
+        #加入数组(每次的迭代)
         history['val_loss'].append(val_loss)
         history['val_acc'].append(val_accuracy)
         #在监视器上先看一下
