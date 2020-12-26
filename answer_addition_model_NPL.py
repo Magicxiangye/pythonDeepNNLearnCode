@@ -10,9 +10,13 @@ def n(digits=3):
     number = ''
     # 是从序列中获取一个随机元素
     for i in range(np.random.randint(1, digits + 1)):
-        pass
+        number += np.random.choice(list('0123456789'))
+    #转换类型返回数值
+    return int(number)
 
 
 
 if __name__ == '__main__':
-    print(np.random.choice(list('012')))
+    a, b = n(), n()
+    question = '{}+{}'.format(a,b)
+    print(question)
