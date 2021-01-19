@@ -23,6 +23,38 @@ def padding(chars, maxlen):
     return chars + ' ' * (maxlen - len(chars))
     # 用空格来进行输入数据的填充
 
+
+# Rnn的编码器-解码器都将使用的是LSTM
+def inference(x, y, n_batch, input_digits=None, n_hidden=None, output_digits=None):
+    # Encoder(编码器)
+    #  这个是没有窥视孔功能的LSTM（.LSTMCell()是有窥视孔功能的，参数也是一样用）
+    encoder = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias= 1.0)
+    # 初始化LSTM的状态
+    state = encoder.zero_state(n_batch, tf.float32)
+    encoder_outputs = []
+    encoder_states = []
+    with tf.variable_scope('Encoder'):
+        for t in range(input_digits):
+            if t > 0:
+                # 创建一个新的计算图时候，reuse默认是None，也就是里面参数不可以复用，
+                # reuse的作用是复用计算图中的使用的参数
+                tf.get_variable_scope().reuse_variables()
+            # LSTM的循环网络的训练
+            (output, state) = encoder(x[:, t, :], state)
+            # 保存一次编码的输出和神经网络的最终的状态
+            encoder_outputs.append(output)
+            encoder_states.append(state)
+    # 接下来是解码器的代码（Decoder）
+    # 解码器的LSTM的初始状态相当于数据进入编码器的LSTM的state的最终状态
+    decoder = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    # 从保存的数组中获取相应的网络的最终的状态（这就是解码器的初始的状态）
+    decoder_state = encoder_states[-1]
+    # 编码器的最终输出，也就是解码器的初始的输出（个人的理解，后期要是学习到觉得不对的话，会进行修改）
+    decoder_outputs = [encoder_outputs[-1]]
+
+
+
+
 if __name__ == '__main__':
     # 生成数据的条数
     N = 20000
@@ -53,3 +85,21 @@ if __name__ == '__main__':
         new_question = '{}+{}'.format(a, b)
         # 填充输入数据的长度到一致的长度
         new_question = padding(new_question, input_digits)
+        new_answer = str(a + b)
+        # 补充输出的长度
+        new_answer = padding(new_answer, output_digits)
+
+        # 保存到相应的数组中
+        added.add(pair)
+        question.append(new_question)
+        answer.append(new_answer)
+
+        # 对数据的独热编码的维度的定义
+        # 使用的是枚举的方法
+        chars = '0123456789+ '
+        # 从文字到向量维度的对应关系
+        char_indices = dict((c, i) for i, c in enumerate(chars))
+        # 从向量维度到文字的对应关系
+        indices_char = dict((i, c) for i, c in enumerate(chars))
+        # 独热编码的生成方式
+        # 先生成的是零向量的矩阵，再用循环的方式去将独热编码的需要的位数变为1
