@@ -53,8 +53,10 @@ class biRnn(object):
         #还是用的交叉熵误差函数
         #tf的几个常用的函数
         #tf.clip_by_value()是使张量的值限定在一个值范围里，可以取等
-        #tf.reduce_sum（）的reduction_indices参数，是
-        cross_entropy = tf.reduce_sum(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)), reduction_indices=[1]))
+        # tf.reduce_sum（）的reduction_indices参数，是表示函数的处理维度。
+        # 它的参数：[0]:第一维对应的相加，[1], [2]以此类推
+        # reduction_indices参数的值默认的时候为None,默认把所有的数据求和，即结果是一维的。
+        cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)), reduction_indices=[1]))
         return cross_entropy
 
     #优化器
@@ -65,8 +67,9 @@ class biRnn(object):
 
     #精确度函数的使用
     def accuracy(self,y,yPredict):
-        correct_prediction  = tf.equal(tf.argmax(y,1), tf.argmax(yPredict,1))#每行最大值的索引是否一样(压缩的是第二维)
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))#张量的类型的转换，最后求总的平均训练的精确度
+        correct_prediction  = tf.equal(tf.argmax(y,1), tf.argmax(yPredict,1))# 每行最大值的索引是否一样(压缩的是第二维)
+        # 返回值correct_prediction 是一个布尔值链表。计算模型的精度还要计算链表的均值。
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))# 张量的类型的转换，最后求总的平均训练的精确度
         return accuracy
 
     #训练

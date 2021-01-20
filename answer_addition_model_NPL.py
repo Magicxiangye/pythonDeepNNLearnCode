@@ -25,7 +25,16 @@ def padding(chars, maxlen):
 
 
 # Rnn的编码器-解码器都将使用的是LSTM
-def inference(x, y, n_batch, input_digits=None, n_hidden=None, output_digits=None):
+def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, output_digits=None, n_out=None):
+    # 权重变量的函数(老方法)
+    def weight_variable(shape):
+        initial = tf.truncated_normal(shape, stddev=0.1)
+        return tf.Variable(initial)
+    # 网络中偏移变量的函数方法
+    def bias_variable(shape):
+        initial = tf.truncated_normal(shape, stddev=0.1)
+        return tf.Variable(initial)
+
     # Encoder(编码器)
     #  这个是没有窥视孔功能的LSTM（.LSTMCell()是有窥视孔功能的，参数也是一样用）
     encoder = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias= 1.0)
@@ -52,8 +61,63 @@ def inference(x, y, n_batch, input_digits=None, n_hidden=None, output_digits=Non
     # 编码器的最终输出，也就是解码器的初始的输出（个人的理解，后期要是学习到觉得不对的话，会进行修改）
     decoder_outputs = [encoder_outputs[-1]]
 
+    # 事先定义输出层的权重和偏置
+    V = weight_variable([n_hidden, n_out])
+    c = bias_variable([n_out])
+    # 保存输出
+    outputs = []
+
+    # 解码器的训练过程
+    with tf.variable_scope('Decoder'):
+        for t in range(1, output_digits):
+            if t > 1:
+                # 还是复用作用域里的变量
+                tf.get_variable_scope().reuse_variables()
+            # 循环神经网络的过程
+            # 当是训练的过程的时候
+            if is_training is True:
+                (output, decoder_state) = decoder(y[:, t - 1, :], decoder_state)
+            else:
+                # 不是训练的话，作为使用的过程
+                # 使用前一个输出作为输入，来进行模型的使用
+                # 将会使用爱英斯坦求和约定
+                # 不是训练的时候，采用的是线性输出层加偏置来使编码器的输出进入输出层加激活函数，变为真正的模型的输出
+                # 来一步步的进入LSTM模型
+                # V 和c 都是之前训练时更新好的输出层的权重矩阵和偏移量
+                linear = tf.matmul(decoder_outputs[-1], V) + c
 
 
+
+
+
+# 损失函数还是之前的
+# 交叉熵的损失函数
+def loss(y, yPredict):
+    # tf的几个常用的函数
+    # tf.clip_by_value()是使张量的值限定在一个值范围里，可以取等
+    # tf.reduce_sum（）的reduction_indices参数，是表示函数的处理维度。
+    # 它的参数：[0]:第一维对应的相加，[1], [2]以此类推
+    # reduction_indices参数的值默认的时候为None,默认把所有的数据求和，即结果是一维的。
+    cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)),reduction_indices=[1]))
+    return cross_entropy
+
+# 优化器的选取
+def training(loss):
+    # 选取的是Adam优化器
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.0, beta2=0.999)
+    # 最小化的损失
+    train_step = optimizer.minimize(loss)
+    return train_step
+
+# 精确度的计算
+def accuracy(y, yPredict):
+    # 每行最大值的索引是否一样(压缩的是第二维)
+    # 也就是找每行最大值的下标
+    # 返回值correct_prediction 是一个布尔值链表。计算模型的精度还要计算链表的均值。
+    correct_prediction = tf.equal(tf.argmax(y, -1), tf.argmax(yPredict, -1))
+    # 最后计算出链表的平均精确度
+    acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    return acc
 
 if __name__ == '__main__':
     # 生成数据的条数
