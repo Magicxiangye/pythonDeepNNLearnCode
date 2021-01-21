@@ -1,5 +1,11 @@
 import tensorflow as tf
 import numpy as np
+from sklearn.model_selection import train_test_split
+
+# 随机稳定
+np.random.seed(0)
+tf.set_random_seed(1234)
+
 
 # 生成加法问答系统的训练数据，（简单版本）
 # 回答加法计算的回答神经网络
@@ -61,7 +67,7 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
     # 编码器的最终输出，也就是解码器的初始的输出（个人的理解，后期要是学习到觉得不对的话，会进行修改）
     decoder_outputs = [encoder_outputs[-1]]
 
-    # 事先定义输出层的权重和偏置
+    # 事先定义输出层的权重和偏置的shape
     V = weight_variable([n_hidden, n_out])
     c = bias_variable([n_out])
     # 保存输出
@@ -85,10 +91,41 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
                 # 来一步步的进入LSTM模型
                 # V 和c 都是之前训练时更新好的输出层的权重矩阵和偏移量
                 linear = tf.matmul(decoder_outputs[-1], V) + c
-
-
-
-
+                # softmax的激活函数
+                out = tf.nn.softmax(linear)
+                # 保存成模型每一步的输出
+                outputs.append(out)
+                # 变为独热编码
+                # one_hot参数如果索引是标量,则输出形状将是长度 depth 的向量.
+                # on_value 和 off_value必须具有匹配的数据类型.如果还提供了 dtype,则它们必须与 dtype 指定的数据类型相同.
+                #
+                # 如果未提供 on_value,则默认值将为 1,其类型为 dtype.
+                # 如果未提供 off_value,则默认值为 0,其类型为 dtype.
+                out = tf.one_hot(tf.argmax(out, -1), depth=output_digits)
+                (output, decoder_state) = decoder(out, decoder_state)
+            # 不管是训练还是其他的流程，都要输出都要保存
+            decoder_outputs.append(output)
+        # 最后的输出
+        if is_training is True:
+                #最后是训练过程的输出时
+                # 先将decoder_outputs reshape一下（数据数量， 序列长度， 隐藏层的维度）
+                output = tf.reshape(tf.concat(decoder_outputs, axis=1), [-1, output_digits, n_hidden])
+                # 使用的时爱英斯坦求和约定
+                # shape也会变为[-1, output_digits, n_out]
+                linear = tf.einsum('ijk,kl->ijl', output, V) + c
+                # 相当于传统的矩阵求和
+                # linear = tf.matmul(output, V) + c
+                # 最后的输出结果
+                return tf.nn.softmax(linear)
+        else:
+                # 正常使用的最后结果
+                # 求最后的输出，线性层加激活函数还是一样的
+                linear = tf.matmul(decoder_outputs[-1], V) + c
+                out = tf.nn.softmax(linear)
+                outputs.append(out)
+                # reshape输出的格式
+                output = tf.reshape(tf.concat(outputs, axis=1), [-1, output_digits, n_out])
+                return output
 
 # 损失函数还是之前的
 # 交叉熵的损失函数
@@ -114,6 +151,8 @@ def accuracy(y, yPredict):
     # 每行最大值的索引是否一样(压缩的是第二维)
     # 也就是找每行最大值的下标
     # 返回值correct_prediction 是一个布尔值链表。计算模型的精度还要计算链表的均值。
+    # argmax()的参数：input：输入Tensor,axis：0表示按列，1表示按行
+    # 因为数据的维度是（数据数量， 序列长度， 隐藏层的维度）所以argmax的参数axis维调整为-1
     correct_prediction = tf.equal(tf.argmax(y, -1), tf.argmax(yPredict, -1))
     # 最后计算出链表的平均精确度
     acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -122,6 +161,8 @@ def accuracy(y, yPredict):
 if __name__ == '__main__':
     # 生成数据的条数
     N = 20000
+    N_train = int(N * 0.9)
+    N_validation = N - N_train
     # 设置一下数据的输入的最大的位数
     digits = 3
     # 同时获取一下输出的最大的位数
@@ -162,8 +203,22 @@ if __name__ == '__main__':
         # 使用的是枚举的方法
         chars = '0123456789+ '
         # 从文字到向量维度的对应关系
+        # 使用的时枚举返回的时（index, 字符）
         char_indices = dict((c, i) for i, c in enumerate(chars))
         # 从向量维度到文字的对应关系
         indices_char = dict((i, c) for i, c in enumerate(chars))
         # 独热编码的生成方式
         # 先生成的是零向量的矩阵，再用循环的方式去将独热编码的需要的位数变为1
+        # 定义输入(问题数量， 输入|输出位数， 独热编码的长度)
+        X = np.zeros((len(question), input_digits, len(chars)), dtype=np.integer)
+        # 定义答案
+        Y = np.zeros((len(question), digits + 1, len(chars)), dtype=np.integer)
+        # 将输入矩阵和答案矩阵，相应位置的0变为一，变为独热编码
+        for i in range(N):
+            for t, char in enumerate(question[i]):
+                X[i, t, char_indices[char]] = 1
+            for t, char in enumerate(answer[i]):
+                Y[i, t, indices_char[char]] = 1
+
+        # 分割训练集和测试验证集
+        X_train, X_validation, Y_train, Y_validation = train_test_split(X, Y, train_size=N_train)
