@@ -1,6 +1,11 @@
 import tensorflow as tf
 import numpy as np
+# 分割模型的使用的数据
 from sklearn.model_selection import train_test_split
+# 训练数据的打乱
+from sklearn.utils import shuffle
+# 每次都要记录一下（ubantu的matplotlib的使用方法有一些差异）
+import matplotlib.pyplot as plt
 
 # 随机稳定
 np.random.seed(0)
@@ -67,7 +72,7 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
     # 编码器的最终输出，也就是解码器的初始的输出（个人的理解，后期要是学习到觉得不对的话，会进行修改）
     decoder_outputs = [encoder_outputs[-1]]
 
-    # 事先定义输出层的权重和偏置的shape
+    # 事先定义输出层（隐藏层到输出层过一个线性层加线性的激活函数）的权重和偏置的shape
     V = weight_variable([n_hidden, n_out])
     c = bias_variable([n_out])
     # 保存输出
@@ -107,7 +112,7 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
             decoder_outputs.append(output)
         # 最后的输出
         if is_training is True:
-                #最后是训练过程的输出时
+                # 最后是训练过程的输出时
                 # 先将decoder_outputs reshape一下（数据数量， 序列长度， 隐藏层的维度）
                 output = tf.reshape(tf.concat(decoder_outputs, axis=1), [-1, output_digits, n_hidden])
                 # 使用的时爱英斯坦求和约定
@@ -222,3 +227,95 @@ if __name__ == '__main__':
 
         # 分割训练集和测试验证集
         X_train, X_validation, Y_train, Y_validation = train_test_split(X, Y, train_size=N_train)
+
+        '''
+             模型属性的定义
+        '''
+        n_in = len(chars) # 这里是0-9和加号和空格
+        # LSTM隐藏层的维度
+        n_hidden = 128
+        n_out = len(chars)
+        # 输入的占位符
+        # 要传入的几个属性(4个)
+        x = tf.placeholder(dtype=tf.float32, shape=[None, input_digits, n_in])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, output_digits, n_out])
+        n_batch = tf.placeholder(tf.int32, shape=[])
+        is_training = tf.placeholder(tf.bool)
+
+        '''
+        模型的训练的流程的定义
+        '''
+        # 训练过程
+        yPredict = inference(x=x, y=y, n_batch=n_batch, is_training=is_training, input_digits=input_digits,
+                             output_digits=output_digits, n_hidden=n_hidden, n_out=n_out)
+        # 误差分析
+        loss = loss(y=y, yPredict=yPredict)
+        # 优化器
+        train_step = training(loss)
+        # 精确度的判断
+        acc = accuracy(y=y, yPredict=yPredict)
+
+        # 历史数据的保存
+        # 验证的误差和验证的精确度（每个迭代的情况）
+        history = {
+            'val_loss': [],
+            'val_acc': []
+        }
+
+        '''
+        模型的训练
+        '''
+        epochs = 200
+        # 分批次批次的size
+        batch_size = 200
+
+        # 会话的老定义
+        init = tf.global_variables_initializer()
+        sess = tf.Session()
+        # 初始化会话
+        sess.run(init)
+
+        # 分成的批次的数量
+        n_batches = N_train // batch_size
+
+        # 训练过程的可视化
+        for epoch in range(epochs):
+            print('--' * 10)
+            print('epoch', epoch)
+            print('--' * 10)
+
+            X_ ,Y_ = shuffle(X_train, Y_train)
+
+            # 批次的训练，为的是使用小批次的梯度下降
+            for i in range(n_batches):
+                start = i * batch_size
+                end = start + batch_size
+
+                # 会话开始训练的流程
+                sess.run([loss, acc, train_step], feed_dict={x: X_[start, end], y: Y_[start, end], n_batch: batch_size, is_training: True})
+
+            # 使用验证集来测试
+            # 每次迭代的loss和acc
+            # 实例的eval()方法，调用模型来进行验证
+            val_loss = loss.eval(session=sess, feed_dict={
+                x: X_validation,
+                y: Y_validation,
+                n_batch: N_validation,
+                is_training: False
+            })
+
+            val_acc = acc.eval(session=sess, feed_dict={
+                x: X_validation,
+                y: Y_validation,
+                n_batch: N_validation,
+                is_training: False
+            })
+
+            # 保存数据，用于matplotlib的画图呈现最后的结果
+            history['val_loss'].append(val_loss)
+            history['val_acc'].append(val_acc)
+            # 每次迭代的显示数据
+            print('validation_loss', val_loss)
+            print('validation_acc', val_acc)
+
+
