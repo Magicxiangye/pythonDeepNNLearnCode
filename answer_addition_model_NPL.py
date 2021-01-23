@@ -171,10 +171,10 @@ if __name__ == '__main__':
     # 设置一下数据的输入的最大的位数
     digits = 3
     # 同时获取一下输出的最大的位数
-    output_digits = digits * 2
+    output_digits = digits + 1
     a, b = n(), n()
     # 获取最大的输入的数据位数，以获取最大的输入的长度
-    input_digits = digits * 2 +1
+    input_digits = digits * 2 + 1
     # 用于存储生成的数据
     added = set()
     # 存储输入数据的数组
@@ -204,118 +204,171 @@ if __name__ == '__main__':
         question.append(new_question)
         answer.append(new_answer)
 
-        # 对数据的独热编码的维度的定义
-        # 使用的是枚举的方法
-        chars = '0123456789+ '
-        # 从文字到向量维度的对应关系
-        # 使用的时枚举返回的时（index, 字符）
-        char_indices = dict((c, i) for i, c in enumerate(chars))
-        # 从向量维度到文字的对应关系
-        indices_char = dict((i, c) for i, c in enumerate(chars))
-        # 独热编码的生成方式
-        # 先生成的是零向量的矩阵，再用循环的方式去将独热编码的需要的位数变为1
-        # 定义输入(问题数量， 输入|输出位数， 独热编码的长度)
-        X = np.zeros((len(question), input_digits, len(chars)), dtype=np.integer)
-        # 定义答案
-        Y = np.zeros((len(question), digits + 1, len(chars)), dtype=np.integer)
-        # 将输入矩阵和答案矩阵，相应位置的0变为一，变为独热编码
-        for i in range(N):
-            for t, char in enumerate(question[i]):
-                X[i, t, char_indices[char]] = 1
-            for t, char in enumerate(answer[i]):
-                Y[i, t, indices_char[char]] = 1
+    # 对数据的独热编码的维度的定义
+    # 使用的是枚举的方法
+    chars = '0123456789+ '
+    # 从文字到向量维度的对应关系
+    # 使用的时枚举返回的时（index, 字符）
+    char_indices = dict((c, i) for i, c in enumerate(chars))
+    # 从向量维度到文字的对应关系
+    indices_char = dict((i, c) for i, c in enumerate(chars))
+    # 独热编码的生成方式
+    # 先生成的是零向量的矩阵，再用循环的方式去将独热编码的需要的位数变为1
+    # 定义输入(问题数量， 输入|输出位数， 独热编码的长度)
+    X = np.zeros((len(question), input_digits, len(chars)), dtype=np.integer)
+    # 定义答案
+    Y = np.zeros((len(question), output_digits, len(chars)), dtype=np.integer)
+    # 将输入矩阵和答案矩阵，相应位置的0变为1，变为独热编码
+    for i in range(N):
+        for t, char in enumerate(question[i]):
+            X[i, t, char_indices[char]] = 1
+        for t, char in enumerate(answer[i]):
+            Y[i, t, char_indices[char]] = 1
 
-        # 分割训练集和测试验证集
-        X_train, X_validation, Y_train, Y_validation = train_test_split(X, Y, train_size=N_train)
+    # 分割训练集和测试验证集
+    X_train, X_validation, Y_train, Y_validation = train_test_split(X, Y, train_size=N_train)
 
-        '''
-             模型属性的定义
-        '''
-        n_in = len(chars) # 这里是0-9和加号和空格
-        # LSTM隐藏层的维度
-        n_hidden = 128
-        n_out = len(chars)
-        # 输入的占位符
-        # 要传入的几个属性(4个)
-        x = tf.placeholder(dtype=tf.float32, shape=[None, input_digits, n_in])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, output_digits, n_out])
-        n_batch = tf.placeholder(tf.int32, shape=[])
-        is_training = tf.placeholder(tf.bool)
+    '''
+         模型属性的定义
+    '''
+    n_in = len(chars) # 这里是0-9和加号和空格
+    # LSTM隐藏层的维度
+    n_hidden = 128
+    n_out = len(chars)
+    # 输入的占位符
+    # 要传入的几个属性(4个)
+    x = tf.placeholder(dtype=tf.float32, shape=[None, input_digits, n_in])
+    y = tf.placeholder(dtype=tf.float32, shape=[None, output_digits, n_out])
+    n_batch = tf.placeholder(tf.int32, shape=[])
+    is_training = tf.placeholder(tf.bool)
 
-        '''
-        模型的训练的流程的定义
-        '''
-        # 训练过程
-        yPredict = inference(x=x, y=y, n_batch=n_batch, is_training=is_training, input_digits=input_digits,
+    '''
+    模型的训练的流程的定义
+    '''
+    # 训练过程
+    yPredict = inference(x=x, y=y, n_batch=n_batch, is_training=is_training, input_digits=input_digits,
                              output_digits=output_digits, n_hidden=n_hidden, n_out=n_out)
-        # 误差分析
-        loss = loss(y=y, yPredict=yPredict)
-        # 优化器
-        train_step = training(loss)
-        # 精确度的判断
-        acc = accuracy(y=y, yPredict=yPredict)
+    # 误差分析
+    loss = loss(y=y, yPredict=yPredict)
+    # 优化器
+    train_step = training(loss)
+    # 精确度的判断
+    acc = accuracy(y=y, yPredict=yPredict)
 
-        # 历史数据的保存
-        # 验证的误差和验证的精确度（每个迭代的情况）
-        history = {
+    # 历史数据的保存
+    # 验证的误差和验证的精确度（每个迭代的情况）
+    history = {
             'val_loss': [],
             'val_acc': []
-        }
+    }
 
-        '''
-        模型的训练
-        '''
-        epochs = 200
-        # 分批次批次的size
-        batch_size = 200
+    '''
+    模型的训练
+    '''
+    epochs = 200
+    # 分批次批次的size
+    batch_size = 200
 
-        # 会话的老定义
-        init = tf.global_variables_initializer()
-        sess = tf.Session()
-        # 初始化会话
-        sess.run(init)
+    # 会话的老定义
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    # 初始化会话
+    sess.run(init)
 
-        # 分成的批次的数量
-        n_batches = N_train // batch_size
+    # 分成的批次的数量
+    n_batches = N_train // batch_size
 
-        # 训练过程的可视化
-        for epoch in range(epochs):
-            print('--' * 10)
-            print('epoch', epoch)
-            print('--' * 10)
+    # 训练过程的可视化
+    for epoch in range(epochs):
+        print('--' * 10)
+        print('epoch', epoch)
+        print('--' * 10)
 
-            X_ ,Y_ = shuffle(X_train, Y_train)
+        X_ ,Y_ = shuffle(X_train, Y_train)
 
-            # 批次的训练，为的是使用小批次的梯度下降
-            for i in range(n_batches):
-                start = i * batch_size
-                end = start + batch_size
+        # 批次的训练，为的是使用小批次的梯度下降
+        for i in range(n_batches):
+            start = i * batch_size
+            end = start + batch_size
 
-                # 会话开始训练的流程
-                sess.run([loss, acc, train_step], feed_dict={x: X_[start, end], y: Y_[start, end], n_batch: batch_size, is_training: True})
+            # 会话开始训练的流程
+            sess.run(train_step, feed_dict={x: X_[start:end], y: Y_[start:end], n_batch: batch_size, is_training: True})
 
-            # 使用验证集来测试
-            # 每次迭代的loss和acc
-            # 实例的eval()方法，调用模型来进行验证
-            val_loss = loss.eval(session=sess, feed_dict={
+        # 使用验证集来测试
+        # 每次迭代的loss和acc
+        # 实例的eval()方法，调用模型来进行验证
+        val_loss = loss.eval(session=sess, feed_dict={
                 x: X_validation,
                 y: Y_validation,
                 n_batch: N_validation,
                 is_training: False
-            })
+        })
 
-            val_acc = acc.eval(session=sess, feed_dict={
+        val_acc = acc.eval(session=sess, feed_dict={
                 x: X_validation,
                 y: Y_validation,
                 n_batch: N_validation,
                 is_training: False
+        })
+
+        # 保存数据，用于matplotlib的画图呈现最后的结果
+        history['val_loss'].append(val_loss)
+        history['val_acc'].append(val_acc)
+        # 每次迭代的显示数据
+        print('validation_loss', val_loss)
+        print('validation_acc', val_acc)
+
+        # 从验证集中随机抽取回答问题
+        # 先选择十个
+        for i in range(10):
+            # 每次随机选择的下标
+            index = np.random.randint(0,N_validation)
+            question = X_validation[np.array([index])]
+            answer = Y_validation[np.array([index])]
+            # 进入模型使用
+            prediction = yPredict.eval(session=sess, feed_dict={
+                    x: question,
+                    n_batch: 1,
+                    is_training: False
             })
 
-            # 保存数据，用于matplotlib的画图呈现最后的结果
-            history['val_loss'].append(val_loss)
-            history['val_acc'].append(val_acc)
-            # 每次迭代的显示数据
-            print('validation_loss', val_loss)
-            print('validation_acc', val_acc)
+            # 使用argmax()来判断最后的下标是否是一致的
+            # argmax()返回的是一个张量的返回结果
+            # 像是---Tensor("ArgMax:0", shape=(), dtype=int64)
+            question = question.argmax(axis=-1)
+            answer = answer.argmax(axis=-1)
+            prediction = np.argmax(prediction, axis=-1)
+
+            # 连接函数进行拼接最后的输出
+            # 解码体现输出
+            # 列表生成式来进行输出的生成
+            # 像是question[0]是提取返回张量的第一个位置的属性，用于编码的转换
+            out_question = ''.join(indices_char[i] for i in question[0])
+            real_answer = ''.join(indices_char[i] for i in answer[0])
+            mod_answer = ''.join(indices_char[i] for i in prediction[0])
+
+            print('--' * 10)
+            print('Question:', out_question)
+            print('real_answer:', real_answer)
+            print('prediction', mod_answer)
+            print('T/F', end=' ')
+            if real_answer == mod_answer:
+                print('T')
+            else:
+                print('F')
+
+        print('--' * 10)
+
+    # 最后可视化一下
+    matlib_loss = history['val_loss']
+    matlib_acc = history['val_acc']
+    plt.rc('font', family='serif')
+    fig = plt.figure()
+    plt.plot(range(len(matlib_loss)), matlib_loss,
+                 label='loss', color='black')
+    plt.plot(range(len(matlib_acc)), matlib_acc, label='acc', color='red')
+    plt.xlabel('epochs')
+    plt.show()
+
 
 
