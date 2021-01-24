@@ -8,6 +8,7 @@ from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 
 # 随机稳定
+# 每次的随机数相同
 np.random.seed(0)
 tf.set_random_seed(1234)
 
