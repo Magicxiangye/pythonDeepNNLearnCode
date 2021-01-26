@@ -48,6 +48,9 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
         return tf.Variable(initial)
 
     # Encoder(编码器)
+    # 加入注意力机制提高模型的执行的效率
+    # AttentionCellWrapper()
+    # 将LSTM块围起来使用，（后期再更行）
     #  这个是没有窥视孔功能的LSTM（.LSTMCell()是有窥视孔功能的，参数也是一样用）
     encoder = tf.contrib.rnn.BasicLSTMCell(n_hidden, forget_bias= 1.0)
     # 初始化LSTM的状态
