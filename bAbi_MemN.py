@@ -7,6 +7,7 @@ from sklearn.utils import shuffle
 # 数据集的来源
 # bAbi任务，Facebook人工智能实验室的数据集
 # http://www.thespermwhale.com/jaseweston/babi/
+# jjj
 # 需要的文件夹在bAbi_data文件夹
 
 # 填充每个单词到最大长度的字符
@@ -43,6 +44,19 @@ def inference(x, q, n_batch, vocab_size=None, embedding_dim=None, story_maxlen=N
     # 记忆网络的模型化训练，对故事和问题进行嵌入式处理
     # 记忆网络模型显示走的是传统的MemN模型，
     # 在最后一步要输出的时候，加上LSTM模块进行精确度的提升，再走一个前馈神经网络层进行输出
+    # 这三个是记忆模型流程中需要的词嵌入的数据
+    # m是故事嵌入用于输入的存储
+    m = tf.nn.embedding_lookup(A, x)
+    # u是输入问题的词嵌入（B是这个算法的词嵌入矩阵）
+    u = tf.nn.embedding_lookup(B, q)
+    # 用于输出的存储的故事词嵌入
+    c = tf.nn.embedding_lookup(C, x)
+    # 每个记忆的匹配度
+    # 还是使用爱因斯坦的求和定律
+    # 这里的问题q是（单词序列）时间序列，要用的是einsum
+    # 这样再公式中o的表达式就会发生一些变化
+    p = tf.nn.softmax(tf.einsum('ijk,ilk->ijl', m, u))
+
 
 if __name__ == '__main__':
     pass
