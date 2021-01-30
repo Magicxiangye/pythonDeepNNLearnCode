@@ -7,7 +7,7 @@ from sklearn.utils import shuffle
 # 数据集的来源
 # bAbi任务，Facebook人工智能实验室的数据集
 # http://www.thespermwhale.com/jaseweston/babi/
-# jjj
+# 今天还是摸鱼的一天
 # 需要的文件夹在bAbi_data文件夹
 
 # 填充每个单词到最大长度的字符
