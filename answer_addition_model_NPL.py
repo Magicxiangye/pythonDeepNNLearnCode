@@ -138,7 +138,7 @@ def inference(x, y, n_batch, is_training, input_digits=None, n_hidden=None, outp
                 return output
 
 # 损失函数还是之前的
-# 交叉熵的损失函数
+# 多分类的交叉熵的损失函数
 def loss(y, yPredict):
     # tf的几个常用的函数
     # tf.clip_by_value()是使张量的值限定在一个值范围里，可以取等

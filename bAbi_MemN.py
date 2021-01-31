@@ -1,3 +1,4 @@
+
 # MemN记忆网络的问答系统
 
 import tensorflow as tf
@@ -7,13 +8,12 @@ from sklearn.utils import shuffle
 # 数据集的来源
 # bAbi任务，Facebook人工智能实验室的数据集
 # http://www.thespermwhale.com/jaseweston/babi/
-# 今天还是摸鱼的一天
 # 需要的文件夹在bAbi_data文件夹
 
 # 填充每个单词到最大长度的字符
 def padding(words, maxlens):
     for i, word in enumerate(words):
-        words[i] = [0] * (len(word) - maxlens) + word
+        words[i] = [0] * (maxlens - len(word)) + word
     # 转型为np数组
     return np.array(words)
 
@@ -56,6 +56,44 @@ def inference(x, q, n_batch, vocab_size=None, embedding_dim=None, story_maxlen=N
     # 这里的问题q是（单词序列）时间序列，要用的是einsum
     # 这样再公式中o的表达式就会发生一些变化
     p = tf.nn.softmax(tf.einsum('ijk,ilk->ijl', m, u))
+    # 原来的公式是累乘p与c，得到最后要进入前馈神经层的o
+    # 广播机制的相加，按照维度来进行相加，相同的维度保留，其他按广播机制进行扩张
+    o = tf.add(p, c)
+    # 交换不同维中的内容
+    o = tf.transpose(o, perm=[0, 2, 1])
+    # 得到的是最后要输出的o和u的集合
+    # tf.concat()连接函数(以最后一个维度进行连接)
+    ou = tf.concat([o, u], axis=-1)
+
+    # 按照文献的改进的方法，隐藏层到输出层之间，再加上一层LSTM，加强问答的精确度
+    cell = tf.contrib.rnn.BasicLSTMCell(embedding_dim//2, forget_bias=1.0)
+    # LSTM块的初始状态
+    initial_state = cell.zero_state(n_batch, tf.float32)
+    state = initial_state
+    outputs = []
+    # question_maxlen，是以单词为计量单位的计算问题的长度
+    with tf.variable_scope('LSTM'):
+        for t in range(question_maxlen):
+            if t > 0:
+                # 复用变量
+                tf.get_variable_scope().reuse_variables()
+            # 可能再实际中，行列的设置可能会不一样，
+            (cell_output, state) = cell(ou[:, t, :], state)
+            outputs.append(cell_output)
+
+    # LSTM层到输出层
+    output = outputs[-1]
+    # 走的是简单的线性层
+    W = weight_variable([embedding_dim//2, vocab_size])
+    a = tf.nn.softmax(tf.matmul(output, W))
+    # 训练的输出
+    return a
+
+# 还是多分类的交叉熵损失函数
+def loss(y, yPredict):
+    cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)),reduction_indices=[1]))
+    return cross_entropy
+
 
 
 if __name__ == '__main__':
