@@ -4,6 +4,10 @@
 import tensorflow as tf
 import numpy as np
 from sklearn.utils import shuffle
+# python3.x 使用reduce方法的import
+from functools import reduce
+# 匹配正则表达式的库
+import re
 
 # 数据集的来源
 # bAbi任务，Facebook人工智能实验室的数据集
@@ -17,10 +21,83 @@ def padding(words, maxlens):
     # 转型为np数组
     return np.array(words)
 
-# 向量再转化为故事
+# 将单词向量数值化
 # 要使用文字到维度的转换数组
-def vectorize_stories():
+# 数据， 单词向量的指标， 故事的最大长度， 问题的最大长度
+def vectorize_stories(data, word_indices, story_maxlen, question_maxlen):
+    X = []
+    Q = []
+    A = []
+    for story, question, answer in data:
+        x = [word_indices[w] for w in story]
+        q = [word_indices[w] for w in question]
+        # 答案是哪个单词，用的是独热编码的方式来存储
+        a =np.zeros(len(word_indices) + 1) # 用于填充，都加1，为的可能是下标的易于辨认
+        # 是答案的单词，独热编码
+        a[word_indices[answer]] = 1
+        X.append(x)
+        Q.append(q)
+        A.append(a)
+    # 最后都要填充到最大的长度才可以输出
+    # 独热编码变形为数组
+    return (padding(X, maxlens=story_maxlen), padding(Q, maxlens=question_maxlen), np.array(A))
+
+
+# 使用正则库来切割问题的语句
+def tokenize(sent):
+    # 列表生成式来简化函数的代码
+    # \W匹配任何非单词字符
+    # re接收正则表达式，带（）会把用作分割的也保留下来，再先走一遍strip()去掉空格
+    final_sent = [x.strip() for x in re.split('(\W+)', sent) if x.strip()]
+
+    return final_sent
+
+
+# 故事问题的分解组合函数
+# 整理为一个问题对应一个故事
+# reduce() 函数会对参数序列中元素进行累积。
+# 将文章分解为单词的形式并进行保存，以便于进行向量化
+def get_stories():
     pass
+
+
+# 对原始的数据进行分解的函数
+def parse_stories(lines):
+    data = []
+    story = []
+    # 每行语句的进行分析
+    for line in lines:
+        # 解码，strip() 方法用于移除字符串头尾指定的字符（默认为空格或换行符）
+        line = line.decode('utf-8').strip()
+        # 在切割每一行，问题的id号，以及问题的本体(空格，切割一次)
+        nid, line = line.split(' ', 1)
+        nid = int(nid)
+        if nid == 1:
+            # 每个故事的开始都是id号为1开始的，当切割到id号为一的时候
+            # 说明是新的故事和问题的开始，story的数组就要清零
+            story = []
+        # 当在某一行里有\t，制表符的时候，说明这一行是问题和答案行和支持答案的来源语句的编号，
+        # 就要进行提取
+        if '\t' in line:
+            q, a, supporting = line.split('\t')
+            # 将问题分割为单词形式
+            # 使用自定义的函数
+            q = tokenize(q)
+            # 故事的语句
+            substory = [x for x in story if x]
+            # 集合到数据(以set的形式)
+            data.append((substory, q, a))
+            # 每一个问句后的分割
+            story.append('')
+        else:
+            # 只是故事的语句，直接切割保存就可以
+            sent = tokenize(line)
+            story.append(sent)
+
+    return data
+
+
+
 
 # 还是模型的定义
 # x:故事；q:问题；vocab_size:词库的大小；embedding_dim:词嵌入的维度
@@ -94,7 +171,27 @@ def loss(y, yPredict):
     cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.clip_by_value(yPredict, 1e-10, 1.0)),reduction_indices=[1]))
     return cross_entropy
 
+# 模型的优化器
+def training(loss):
+    # Adam动量优化器
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.9, beta2=0.999)
+    training_step = optimizer.minimize(optimizer)
 
+    return training_step
+
+
+# 预测精确度的验证
+def accuracy(y, yPredict):
+    # 每行最大值的索引是否一样(压缩的是第二维)
+    # 也就是找每行最大值的下标
+    # 返回值correct_prediction 是一个布尔值链表。计算模型的精度还要计算链表的均值。
+    # argmax()的参数：input：输入Tensor,axis：0表示按列，1表示按行
+    # 先得出一个布尔列表的值，在转换为float，算出最后的平均值
+    correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(yPredict, 1))
+    # 算出最后的精确度
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    return accuracy
 
 if __name__ == '__main__':
     pass

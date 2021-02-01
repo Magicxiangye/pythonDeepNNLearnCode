@@ -1,9 +1,9 @@
 
 import tensorflow as tf
+import numpy as np
+import re
 
 if __name__ == "__main__":
-    chars = '0123456789+ '
-    test = set()
-    for char in chars:
-        test |= set(char)
-        print(test)
+    sent = 'Where is Sandra?'
+    a =[x.strip() for x in re.split('\W+', sent)]
+    print(a)
