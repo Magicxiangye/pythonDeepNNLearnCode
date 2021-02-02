@@ -55,10 +55,26 @@ def tokenize(sent):
 
 # 故事问题的分解组合函数
 # 整理为一个问题对应一个故事
-# reduce() 函数会对参数序列中元素进行累积。
+# reduce() 函数会对参数序列中元素进行累积。function -- 函数，有两个参数
+# iterable -- 可迭代对象
+# initializer -- 可选，初始参数
 # 将文章分解为单词的形式并进行保存，以便于进行向量化
-def get_stories():
-    pass
+def get_stories(file, max_length=None):
+    # 设置函数内部的展开句子函数
+    def flatten(data):
+        # 匿名函数来拼接句子的每一个单词
+        return reduce(lambda x, y: x + y, data)
+
+    # 开始处理传入的故事文件
+    # 先开始分解传入的文件
+    data = parse_stories(file.readlines())
+    # 合成一个问题对应一个故事并写出解答
+    # 上一行data里的每一个数据都是
+    # 函数的条件是，不限制长度和故事小于最大的长度
+    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+
+    return data
+
 
 
 # 对原始的数据进行分解的函数
@@ -175,7 +191,7 @@ def loss(y, yPredict):
 def training(loss):
     # Adam动量优化器
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.9, beta2=0.999)
-    training_step = optimizer.minimize(optimizer)
+    training_step = optimizer.minimize(loss)
 
     return training_step
 
@@ -194,4 +210,41 @@ def accuracy(y, yPredict):
     return accuracy
 
 if __name__ == '__main__':
-    pass
+    # 开始训练的流程
+    # 先是数据的准备阶段
+    # 读取训练集和测试集
+
+    file_train = open("bAbi_data/qa1_single-supporting-fact_train.txt", mode="r")
+    file_test = open("bAbi_data/qa1_single-supporting-fact_test.txt", mode="r")
+
+    # 分解故事
+    train_stories = get_stories(file=file_train)
+    test_stories = get_stories(file=file_test)
+    # 语料库的set
+    vocab = set()
+    for story, q, answer in train_stories + test_stories:
+        # 按位或赋值(|=),按set计入词汇表
+        vocab |= set(story + q + [answer])
+    vocab = sorted(vocab)
+    vocab_size = len(vocab) + 1 # 用于填充1
+
+    # 得出最大的故事长度和问题的长度
+    # map() 会根据提供的函数对指定序列做映射。
+    story_maxlen = max(map(len, (x for x, _, _ in train_stories + test_stories)))
+    question_maxlen = max(map(len, (x for _, x, _ in train_stories + test_stories)))
+
+    print("向量化数据词汇")
+    # 词的坐标，先设置语料库的词汇的位置，再生成独热编码
+    word_indices = dict((c, i + 1) for i, c in enumerate(vocab))
+    # 把单词向量化，生成独热编码
+    inputs_train, question_train, answer_train = \
+        vectorize_stories(train_stories, word_indices, story_maxlen, question_maxlen)
+
+    inputs_test, question_test, answer_test = \
+        vectorize_stories(test_stories, word_indices, story_maxlen, question_maxlen)
+
+    '''
+       模型的生成
+    '''
+    print("model Building")
+    # 先设定占位符placeholder

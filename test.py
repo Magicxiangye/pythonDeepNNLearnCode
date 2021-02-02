@@ -4,6 +4,9 @@ import numpy as np
 import re
 
 if __name__ == "__main__":
-    sent = 'Where is Sandra?'
-    a =[x.strip() for x in re.split('\W+', sent)]
-    print(a)
+    sent = ['Where is Sandra?', 'Where','qqq']
+    vo = set()
+    for a in sent:
+        vo = set(a)
+
+    print(vo)
