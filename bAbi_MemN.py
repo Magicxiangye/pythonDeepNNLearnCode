@@ -248,4 +248,58 @@ if __name__ == '__main__':
     '''
     print("model Building")
     # 先设定占位符placeholder
-    # happy new year
+    # batch, 故事、问题、答案
+    x = tf.placeholder(tf.int32, shape=[None, story_maxlen])
+    q = tf.placeholder(tf.int32, shape=[None, question_maxlen])
+    a = tf.placeholder(tf.float32, shape=[None, vocab_size])
+    # 每次分批次，每一批次的个数，LSTM网络都要知道
+    n_batch = tf.placeholder(tf.int32, shape=[])
+
+    '''
+      训练的定义
+    '''
+    yPredict = inference(x=x, q=q, n_batch=n_batch,
+                         vocab_size=vocab_size, embedding_dim=64,
+                         story_maxlen=story_maxlen, question_maxlen=question_maxlen)
+    # 误差分析
+    loss = loss(y=a, yPredict=yPredict)
+    # 优化器
+    trian_step = training(loss)
+    # 精确度的生成
+    acc = accuracy(y=a, yPredict=yPredict)
+    # 历史记录的保存，用作可视化
+    history = {
+        'val_loss': [],
+        'val_acc': []
+    }
+
+    '''
+       模型的训练
+    '''
+
+    print("start model training ")
+    # 迭代次数
+    epochs = 120
+    # 一个批次的大小
+    batch_size = 100
+
+    init = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init)
+
+    # 批次数
+    n_batches = len(inputs_train) // batch_size
+
+    # 开始训练
+    for epoch in range(epochs):
+        # 先把各训练集打乱
+        inputs_train_, questions_train_, answers_train_ = \
+            shuffle(inputs_train, question_train, answer_train)
+
+        # 每轮都是小批次的梯度下降
+        for i in range(n_batches):
+            start = i * batch_size
+            end = start + batch_size
+
+
+
