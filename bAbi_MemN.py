@@ -4,6 +4,9 @@
 import tensorflow as tf
 import numpy as np
 from sklearn.utils import shuffle
+# 画图
+import matplotlib.pyplot as plt
+#测试常用数据集
 # python3.x 使用reduce方法的import
 from functools import reduce
 # 匹配正则表达式的库
@@ -84,7 +87,7 @@ def parse_stories(lines):
     # 每行语句的进行分析
     for line in lines:
         # 解码，strip() 方法用于移除字符串头尾指定的字符（默认为空格或换行符）
-        line = line.decode('utf-8').strip()
+        line = line.strip()
         # 在切割每一行，问题的id号，以及问题的本体(空格，切割一次)
         nid, line = line.split(' ', 1)
         nid = int(nid)
@@ -128,11 +131,12 @@ def inference(x, q, n_batch, vocab_size=None, embedding_dim=None, story_maxlen=N
         return tf.Variable(initial)
 
     # 先定义的是用于嵌入的权重矩阵
-    # A,C用于故事的输出和输入的词嵌入算法的权重矩阵
+    # A,C用于故事的输入和输出的词嵌入算法的权重矩阵
     # B是用于问题的词嵌入算法的权重矩阵
     A = weight_variable([vocab_size, embedding_dim])
     B = weight_variable([vocab_size, embedding_dim])
-    C = weight_variable([vocab_size, embedding_dim])
+    # 故事的输出的维度为question，因为要和故事的输出添加
+    C = weight_variable([vocab_size, question_maxlen])
     # tensorflow自带的嵌入处理的接口
     # 记忆网络的模型化训练，对故事和问题进行嵌入式处理
     # 记忆网络模型显示走的是传统的MemN模型，
@@ -264,7 +268,7 @@ if __name__ == '__main__':
     # 误差分析
     loss = loss(y=a, yPredict=yPredict)
     # 优化器
-    trian_step = training(loss)
+    train_step = training(loss)
     # 精确度的生成
     acc = accuracy(y=a, yPredict=yPredict)
     # 历史记录的保存，用作可视化
@@ -300,6 +304,46 @@ if __name__ == '__main__':
         for i in range(n_batches):
             start = i * batch_size
             end = start + batch_size
+
+            # 会话
+            sess.run(train_step, feed_dict={
+                x: inputs_train_[start:end],
+                q: questions_train_[start:end],
+                a: answers_train_[start:end],
+                n_batch: batch_size
+            })
+
+        # 使用测试数据进行评估
+        val_loss = loss.eval(session=sess, feed_dict={
+                x: inputs_test,
+                q: question_test,
+                a: answer_test,
+                n_batch: len(inputs_test)
+        })
+
+        # 测试集的精确度
+        val_acc = acc.eval(session=sess, feed_dict={
+                x: inputs_test,
+                q: question_test,
+                a: answer_test,
+                n_batch: len(inputs_test)
+        })
+
+        # 保存
+        history['val_loss'].append(val_loss)
+        history['val_acc'].append(val_acc)
+        print('epoch', epoch, 'val_loss', val_loss, 'val_acc', val_acc)
+
+    # 画图
+    matlib_loss = history['val_loss']
+    matlib_acc = history['val_acc']
+    plt.rc('font', family='serif')
+    fig = plt.figure()
+    plt.plot(range(len(matlib_loss)), matlib_loss,
+                     label='loss', color='black')
+    plt.plot(range(len(matlib_acc)), matlib_acc, label='acc', color='red')
+    plt.xlabel('epochs')
+    plt.show()
 
 
 
