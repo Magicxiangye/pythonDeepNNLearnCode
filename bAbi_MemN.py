@@ -337,6 +337,7 @@ if __name__ == '__main__':
     # 画图
     matlib_loss = history['val_loss']
     matlib_acc = history['val_acc']
+    # 字体
     plt.rc('font', family='serif')
     fig = plt.figure()
     plt.plot(range(len(matlib_loss)), matlib_loss,
