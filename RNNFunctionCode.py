@@ -52,7 +52,7 @@ class RNN(object):
         train_step = optimizer.minimize(loss)
         return train_step
 
-    #训练的部分
+    # 训练的部分
     def fit(self,xTrain,yTrain,maxlen):
         n_in  = len(xTrain[0][0])#1
         n_hidden = 20
