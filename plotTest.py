@@ -11,6 +11,7 @@ if __name__ == '__main__':
     mnist = datasets.fetch_mldata('MNIST original', data_home='.')
 
     # MNIST打乱顺序抽取出N数据来进行测试
+
     n = len(mnist.data)
     N = 3000  # 选取部分MNIST数据进行实验
     N_train = 2000
