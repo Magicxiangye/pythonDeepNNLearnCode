@@ -200,7 +200,7 @@ def training(loss):
     return training_step
 
 
-# 预测精确度的验证
+# 预测精确度的 验证
 def accuracy(y, yPredict):
     # 每行最大值的索引是否一样(压缩的是第二维)
     # 也就是找每行最大值的下标
